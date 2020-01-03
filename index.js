@@ -25,6 +25,9 @@ if (typeof web3js !== 'undefined') {
 
 import Main from './contracts/Main.json';
 import Session from './contracts/Session.json';
+ethereum.on('accountsChanged', function (accounts) {
+  window.location.replace('/');
+})
 
 const mainContract = new web3js.eth.Contract(Main.abi, config.mainContract);
 // console.log(mainContract);
@@ -42,7 +45,8 @@ var state = {
   email: ''.replace,
   newProduct: {},
   sessions: [],
-  currentProductIndex: 0
+  currentProductIndex: 0,
+  message: ''
 };
 
 // Functions of Main Contract
@@ -70,7 +74,7 @@ const contractFunctions = {
       let gasAmount = await mainContract.methods.register(fullname, email).estimateGas({from: account});
       await mainContract.methods.register(fullname, email).send({from: account, gas: gasAmount});
     } catch (error) {
-      alert('Register failed!!');
+      alert('Register/Update failed!!');
     }
   },
   // Get number of sessions  
@@ -114,7 +118,8 @@ const actions = {
       let gasAmount = await contract.deploy({arguments: params}).estimateGas({from: admin});
       await contract.deploy({arguments: params}).send({ from: admin, gas: gasAmount });
     } catch (error) {
-      alert('Create product failed!!');
+      actions.setMessage('Action failed, Create product failed');
+      actions.showAlertMessage('error');
     }
     actions.getSessions();
   },
@@ -140,9 +145,11 @@ const actions = {
         try {
           gasAmount = await sessionContract.methods.startSession().estimateGas({from: state.account});
           await sessionContract.methods.startSession().send({from: state.account, gas: (gasAmount || 3000)});
-          alert('Pricing was started!!');
+          actions.setMessage('Action Success, Pricing session was started.');
+          actions.showAlertMessage('success');
         } catch (error) {
-          alert('Can not start session!!');
+          actions.setMessage('Action Failed, Can not start session.');
+          actions.showAlertMessage('error');
         }
         actions.getSessions();
         break;
@@ -152,9 +159,11 @@ const actions = {
           // console.log(state);
           gasAmount = await sessionContract.methods.stopSession().estimateGas({from: state.account});
           await sessionContract.methods.stopSession().send({from: state.account, gas: (gasAmount || 3000)});
-          alert('Pricing was stoped!!');
+          actions.setMessage('Action Success, Pricing session was stoped.');
+          actions.showAlertMessage('success');
         } catch (error) {
-          alert('Can not stop session!!');
+          actions.setMessage('Action Failed, Can not stop session.');
+          actions.showAlertMessage('error');
         }
         actions.getSessions();
         break;
@@ -165,9 +174,15 @@ const actions = {
           let price = data.price;
           gasAmount = await sessionContract.methods.pricing(price).estimateGas({from: state.account});
           await sessionContract.methods.pricing(price).send({from: state.account, gas: (gasAmount || 3000)});
-          alert('Pricing success!!');
+          actions.setMessage('Action Success, Your pricing success.');
+          actions.showAlertMessage('success');
         } catch (error) {
-          alert('Can not pricing product!!');
+          if(!state.profile.isMember) {
+            actions.setMessage('Action Failed, Can not pricing product. You have to be member.');
+          } else{
+            actions.setMessage('Action Failed, Can not pricing product.');
+          }
+          actions.showAlertMessage('error');
         }
         actions.getSessions();
         break;
@@ -177,10 +192,12 @@ const actions = {
         try {
           gasAmount = await sessionContract.methods.closeSession().estimateGas({from: state.account});
           await sessionContract.methods.closeSession().send({from: state.account, gas: (gasAmount || 3000)});
-          alert('Pricing was closed!!');
-          window.location.reload();
+          actions.setMessage('Action Success, Pricing session was closed.');
+          actions.showAlertMessage('success');
+          window.location.reload(false);
         } catch (error) {
-          alert('Can not closing product!!');
+          actions.setMessage('Action Failed, Can not closing session.');
+          actions.showAlertMessage('error');
         }
         actions.getSessions();
         break;
@@ -191,7 +208,6 @@ const actions = {
 
   getAccount: () => async (state, actions) => {
     let accounts = await window.ethereum.enable();
-    // let account = await contractFunctions.getAccounts();
     let account = accounts[0];
     console.log('Account: ' + account);
     let balance = await contractFunctions.getBalance(account);
@@ -199,7 +215,12 @@ const actions = {
     let admin = await contractFunctions.getAdmin();
     console.log('admin: ' + admin);
     let profile = await contractFunctions.participants(account)();
-
+    console.log(profile.isMember);
+    if(!profile.isMember) {
+      actions.setMessage('You are not member! Now, you should to register.');
+      actions.showAlertMessage('info', true);
+    }
+    
     actions.setAccount({
       account: account,
       balance,
@@ -319,10 +340,35 @@ const actions = {
         break;
     }
     return status;
+  },
+  setMessage: message => state => {
+    return {
+      ...state,
+      message: message
+    }
+  },
+  showAlertMessage(type, hide) {
+    $('#model').hide();
+    switch (type) {
+      case 'info':
+        $('#model').removeClass().addClass('alert alert-info');
+        break;
+      case 'error':
+        $('#model').removeClass().addClass('alert alert-danger');
+        break;
+      case 'success':
+        $('#model').removeClass().addClass('alert alert-success');
+        break;
+    }
+    $('#model').show();
+    setTimeout(() => {
+      $('#model').hide();
+    }, 10000);
+  },
+  hideAlert() {
+    $('#model').hide();
   }
 };
-
-
 
 
 const view = (
@@ -336,8 +382,15 @@ const view = (
         getAccount();
         getParticipants();
         getSessions();
+        
       }}
     >
+      <div class="alert alert-info" role="alert" id="model">
+        {state.message}
+        <button type="button" class="close ml-4" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
       <div class='app-body'>
         <Sidebar
           balance={state.balance}
@@ -361,3 +414,4 @@ const el = document.body;
 
 const main = app(state, actions, view, el);
 const unsubscribe = location.subscribe(main.location);
+

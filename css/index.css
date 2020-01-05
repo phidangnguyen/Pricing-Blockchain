@@ -24,3 +24,6 @@
   display: none;
   min-width: 300;
 }
+.btn, input {
+  border-radius: 0 !important;
+}

@@ -5,6 +5,7 @@ const Fragment = (props, children) => children;
 
 const Product = ({ product, newProduct, input, create, isAdmin, fn }) => {
   let price;
+  let timeOut;
   return (
     <>
       {product ? (
@@ -16,8 +17,8 @@ const Product = ({ product, newProduct, input, create, isAdmin, fn }) => {
             <img
               class='rounded float-left product-image'
               src={
-                product.image.startsWith('http')
-                  ? product.image
+                product.image
+                  ? 'http://127.0.0.1:8080/ipfs/' + product.image
                   : '//robohash.org/' + product.image + '?set=set4&bgset=bg2'
               }
             ></img>
@@ -46,36 +47,40 @@ const Product = ({ product, newProduct, input, create, isAdmin, fn }) => {
           </div>
           {isAdmin ? (
             <div class='card-footer'>
-              <div class='input-group'>
+              <div class='input-group mb-4'>
                 <div class='input-group-prepend mr-4'>
                   <button
-                    class='btn btn-outline-primary mr-4'
+                    class='btn btn-primary'
                     type='button'
-                    onclick={e => fn({action: 'start'})}
+                    onclick={e => fn({action: 'start', time: timeOut})}
                   >
                     Start
                   </button>
+                  {/* <input
+                    type='number'
+                    styte = 'width: 200px'
+                    class='form-control'
+                    placeholder='Time for session (munite)'
+                    oninput={e => (timeOut = e.target.value)}
+                  /> */}
+                </div>
+                <div class='input-group-prepend mr-4'>
                   <button
-                    class='btn btn-outline-primary'
+                    class='btn btn-success'
                     type='button'
                     onclick={e => fn({action: 'stop'})}
                   >
                     Stop
                   </button>
                 </div>
-                {/* <input
-                  type='number'
-                  class='form-control'
-                  placeholder='price'
-                  oninput={e => (price = e.target.value)}
-                /> */}
+              </div>  
+              <div class='input-group'>  
                 <div class='input-group-append'>
                   <button
-                    class='btn btn-outline-primary'
+                    class='btn btn-danger'
                     type='button'
                     onclick={e => fn({action: 'close'})}
                   >
-                    {/* Set price and close */}
                     Close session
                   </button>
                 </div>
@@ -127,7 +132,6 @@ const Product = ({ product, newProduct, input, create, isAdmin, fn }) => {
                 </div>
               </div>
             </div>
-
             <div class='row'>
               <div class='col-sm-12'>
                 <div class='form-group'>

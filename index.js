@@ -8,6 +8,7 @@ import { promisify } from 'util';
 import './css/vendor/bootstrap.css';
 import './css/vendor/coreui.css';
 import './css/index.css';
+import $ from 'jquery';
 
 const Fragment = (props, children) => children;
 
@@ -27,10 +28,11 @@ import Main from './contracts/Main.json';
 import Session from './contracts/Session.json';
 ethereum.on('accountsChanged', function (accounts) {
   window.location.replace('/');
-})
+});
 
 const mainContract = new web3js.eth.Contract(Main.abi, config.mainContract);
-// console.log(mainContract);
+console.log(mainContract);
+
 
 var state = {
   count: 1,
@@ -57,25 +59,21 @@ const contractFunctions = {
   // TODO: The methods' name is for referenced. Update to match with your Main contract
 
   // Get Admin address of Main contract
-  getAdmin: mainContract.methods.admin().call,
+  getAdmin: mainContract.methods.getAdmin().call,
 
   // Get participant by address
   participants: address => mainContract.methods.participants(address).call,
 
   // Get number of participants
-  nParticipants: mainContract.methods.nParticipants().call,
+  nParticipants: mainContract.methods.getNParti().call,
 
   // Get address of participant by index (use to loop through the list of participants) 
-  iParticipants: index => mainContract.methods.iParticipants(index).call,
+  iParticipants: index => mainContract.methods.getIParti(index).call,
 
   // Register new participant
   register: async (fullname, email, account) => {
-    try {
-      let gasAmount = await mainContract.methods.register(fullname, email).estimateGas({from: account});
-      await mainContract.methods.register(fullname, email).send({from: account, gas: gasAmount});
-    } catch (error) {
-      alert('Register/Update failed!!');
-    }
+    let gasAmount = await mainContract.methods.register(fullname, email).estimateGas({from: account});
+    await mainContract.methods.register(fullname, email).send({from: account, gas: gasAmount});
   },
   // Get number of sessions  
   nSessions: mainContract.methods.nSessions().call,
@@ -117,6 +115,8 @@ const actions = {
     try {
       let gasAmount = await contract.deploy({arguments: params}).estimateGas({from: admin});
       await contract.deploy({arguments: params}).send({ from: admin, gas: gasAmount });
+      actions.setMessage('Action Success, Create product success.');
+      actions.showAlertMessage('success');
     } catch (error) {
       actions.setMessage('Action failed, Create product failed');
       actions.showAlertMessage('error');
@@ -131,10 +131,6 @@ const actions = {
   },
 
   sessionFn: (data) => async (state, actions) => {
-    // console.log('Action: ' + data.action);
-    // console.log('Price: ' + data.price);
-    // console.log(state.currentProductIndex);
-    // console.log(state.sessions[state.currentProductIndex].contract['_address']);
     const session = state.sessions[state.currentProductIndex].contract['_address'];
     const sessionContract = new web3js.eth.Contract(Session.abi, session);
     let gasAmount = 0;
@@ -143,8 +139,10 @@ const actions = {
       case 'start':
         //TODO: Handle event when User Start a new session
         try {
-          gasAmount = await sessionContract.methods.startSession().estimateGas({from: state.account});
-          await sessionContract.methods.startSession().send({from: state.account, gas: (gasAmount || 3000)});
+          let timeOut;
+          let account = state.account;
+          gasAmount = await sessionContract.methods.startSession().estimateGas({from: account});
+          await sessionContract.methods.startSession().send({from: account, gas: (gasAmount || 3000)});
           actions.setMessage('Action Success, Pricing session was started.');
           actions.showAlertMessage('success');
         } catch (error) {
@@ -156,7 +154,6 @@ const actions = {
       case 'stop':
         //TODO: Handle event when User Stop a session
         try {
-          // console.log(state);
           gasAmount = await sessionContract.methods.stopSession().estimateGas({from: state.account});
           await sessionContract.methods.stopSession().send({from: state.account, gas: (gasAmount || 3000)});
           actions.setMessage('Action Success, Pricing session was stoped.');
@@ -279,8 +276,22 @@ const actions = {
     let fullname = state.profile.fullname;
     let email = state.profile.email;
     let account = state.account;
-
-    await contractFunctions.register(fullname, email, account);
+    try {
+      await contractFunctions.register(fullname, email, account);
+      if(profile.isMember) {
+        actions.setMessage('Congratulations! Your information updated.');
+      } else  {
+        actions.setMessage('Congratulations! Your register success.');
+      }
+      actions.showAlertMessage('success');
+    } catch (error) {
+      if(profile.isMember) {
+        actions.setMessage('Sorry! Update information failed.');
+      } else  {
+        actions.setMessage('Sorry! Your register failed');
+      }
+      actions.showAlertMessage('error');
+    }
     // TODO: And get back the information of created participant
     actions.setProfile(profile);
     window.location.reload(false); 
@@ -364,9 +375,6 @@ const actions = {
     setTimeout(() => {
       $('#model').hide();
     }, 10000);
-  },
-  hideAlert() {
-    $('#model').hide();
   }
 };
 

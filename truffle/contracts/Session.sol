@@ -3,10 +3,10 @@ pragma solidity ^0.4.17;
 contract Main {
     // Structure to hold details of Bidder
     function addSession(address _session) public {}
-    function getAdmin() public returns(address) {}
-    function getDeviation(address _address) public returns(uint) {}
+    function getAdmin() public view returns(address) {}
+    function getDeviation(address _address) public view returns(uint) {}
     function updateInfor(address _address, uint _newDevi) public {}
-    function isMember(address _address) public returns(bool) {}
+    function isMember(address _address) public view returns(bool) {}
 }
 
 contract Session {
@@ -120,7 +120,7 @@ contract Session {
     }
 
     // Calculate proposed base on formula povider
-    function calPrice() private returns (uint) {
+    function calPrice() private view returns (uint) {
         if(nParticipants == 0) {
             return 0;
         }
@@ -138,7 +138,7 @@ contract Session {
     }
 
     // Calculate new deviation for participant via current session
-    function calDeviationNew(uint _uPrice, uint _fPrice) private returns (uint) {
+    function calDeviationNew(uint _uPrice, uint _fPrice) private pure returns (uint) {
         uint _numerator;
         if (_uPrice > _fPrice) {
             _numerator = _uPrice - _fPrice;

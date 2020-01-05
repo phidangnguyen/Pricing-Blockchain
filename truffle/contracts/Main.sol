@@ -14,11 +14,11 @@ contract Main {
     }
 
     address[] public sessions;
-    address public admin; // Admin account is the account deploy the main smart contract
+    address private admin; // Admin account is the account deploy the main smart contract
     mapping(address => IParticipant) public participants;
-    uint public nParticipants;
+    uint private nParticipants;
     uint public nSessions; // Get number of sessions
-    address[] public iParticipants;
+    address[] private iParticipants;
     
     // TODO: Variables
 
@@ -33,16 +33,24 @@ contract Main {
         nSessions ++;
     }
 
-    function getAdmin() public returns(address) {
+    function getAdmin() public view returns(address) {
         return admin;
     }
 
-    function getDeviation(address _address) public returns(uint) {
+    function getDeviation(address _address) public view returns(uint) {
         return participants[_address].deviation;
     }
 
-    function isMember(address _address) public returns(bool) {
+    function isMember(address _address) public view returns(bool) {
         return participants[_address].isMember;
+    }
+
+    function getNParti() public view onlyAdmin() returns(uint) {
+        return nParticipants;
+    }
+
+    function getIParti(uint _index) public view onlyAdmin() returns(address) {
+        return iParticipants[_index];
     }
 
     // Update participants information when closed session

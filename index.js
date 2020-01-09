@@ -17,11 +17,9 @@ let web3js;
 
 if (typeof web3js !== 'undefined') {
   web3js = new Web3(web3.currentProvider);
-  console.log('Current Provider')
 } else {
     web3js = new Web3(window.ethereum);
   // console.log('ws://localhost:7545')
-  console.log(web3js);
 }
 
 import Main from './contracts/Main.json';
@@ -31,7 +29,6 @@ ethereum.on('accountsChanged', function (accounts) {
 });
 
 const mainContract = new web3js.eth.Contract(Main.abi, config.mainContract);
-console.log(mainContract);
 
 
 var state = {
@@ -118,7 +115,7 @@ const actions = {
       actions.setMessage('Action Success, Create product success.');
       actions.showAlertMessage('success');
     } catch (error) {
-      actions.setMessage('Action failed, Create product failed');
+      actions.setMessage('Action failed, Create product failed.');
       actions.showAlertMessage('error');
     }
     actions.getSessions();
@@ -133,16 +130,20 @@ const actions = {
   sessionFn: (data) => async (state, actions) => {
     const session = state.sessions[state.currentProductIndex].contract['_address'];
     const sessionContract = new web3js.eth.Contract(Session.abi, session);
+    
     let gasAmount = 0;
 
     switch (data.action) {
       case 'start':
         //TODO: Handle event when User Start a new session
         try {
-          let timeOut;
+          let timeOut = 0;
           let account = state.account;
-          gasAmount = await sessionContract.methods.startSession().estimateGas({from: account});
-          await sessionContract.methods.startSession().send({from: account, gas: (gasAmount || 3000)});
+          if(data.time && Number(data.time)) {
+            timeOut = Number(data.time) * 60;
+          }
+          gasAmount = await sessionContract.methods.startSession(timeOut).estimateGas({from: account});
+          await sessionContract.methods.startSession(timeOut).send({from: account, gas: (gasAmount || 3000)});
           actions.setMessage('Action Success, Pricing session was started.');
           actions.showAlertMessage('success');
         } catch (error) {
@@ -169,10 +170,21 @@ const actions = {
         //The inputed Price is stored in `data`
         try {
           let price = data.price;
+          let expired;
+          
           gasAmount = await sessionContract.methods.pricing(price).estimateGas({from: state.account});
           await sessionContract.methods.pricing(price).send({from: state.account, gas: (gasAmount || 3000)});
-          actions.setMessage('Action Success, Your pricing success.');
-          actions.showAlertMessage('success');
+          
+          await sessionContract.getPastEvents('SessionExpiredEvent', (error, event) => {
+            if(event && event[0].returnValues && event[0].returnValues[0]) expired = event[0].returnValues[0];
+            if(expired) {
+              actions.setMessage('Pricing session of product expired.');
+              actions.showAlertMessage('error');
+            } else {
+              actions.setMessage('Action Success, Your pricing success.');
+              actions.showAlertMessage('success');
+            }
+          });
         } catch (error) {
           if(!state.profile.isMember) {
             actions.setMessage('Action Failed, Can not pricing product. You have to be member.');
@@ -206,13 +218,9 @@ const actions = {
   getAccount: () => async (state, actions) => {
     let accounts = await window.ethereum.enable();
     let account = accounts[0];
-    console.log('Account: ' + account);
     let balance = await contractFunctions.getBalance(account);
-    console.log('balance: ' + balance);
     let admin = await contractFunctions.getAdmin();
-    console.log('admin: ' + admin);
     let profile = await contractFunctions.participants(account)();
-    console.log(profile.isMember);
     if(!profile.isMember) {
       actions.setMessage('You are not member! Now, you should to register.');
       actions.showAlertMessage('info', true);
@@ -252,7 +260,6 @@ const actions = {
         participants.push(participant);
       }
     }
-    // console.log(participants);
     actions.setParticipants(participants);
   },
 
@@ -305,26 +312,33 @@ const actions = {
     // TODO: And loop through all sessions to get information
 
     for (let index = 0; index < nSession; index++) {
-      // Get session address
-      let session = await contractFunctions.sessions(index)();
-      // Load the session contract on network
-      let contract = new web3js.eth.Contract(Session.abi, session);
-      // Get product information from session contract
-      let gasAmount = await contract.methods.product().estimateGas({from: state.account});
-      let product = await contract.methods.product().call({from: state.account, gas: gasAmount});
-    
-      let id = session;
-      // TODO: Load information of session.
-      // Hint: - Call methods of Session contract to reveal all nessesary information
-      //       - Use `await` to wait the response of contract
-      let name = product.name; // TODO
-      let description = product.description; // TODO
-      let price = product.price; // TODO
-      let image = product.image; // TODO
-      let status =  actions.getStatus(Number(product.status));
-      sessions.push({ id, name, description, price, contract, image, status });
+      try {
+        // Get session address
+        let session = await contractFunctions.sessions(index)();
+        // Load the session contract on network
+        let contract = new web3js.eth.Contract(Session.abi, session);
+        
+        // Get product information from session contract
+        
+        let gasAmount = await contract.methods.product().estimateGas({from: state.account});
+        let product = await contract.methods.product().call({from: state.account, gas: gasAmount});
+      
+        let id = session;
+        // TODO: Load information of session.
+        // Hint: - Call methods of Session contract to reveal all nessesary information
+        //       - Use `await` to wait the response of contract
+        let name = product.name; // TODO
+        let description = product.description; // TODO
+        let price = product.price; // TODO
+        let image = product.image; // TODO
+        let status =  actions.getStatus(Number(product.status));
+        sessions.push({ id, name, description, price, contract, image, status });
+          
+      } catch (error) {
+        console.log(error);
+      } 
+      
     }
-    // console.log(sessions);  
     actions.setSessions(sessions);
   },
 
@@ -386,10 +400,10 @@ const view = (
   return (
     <body
       class='app sidebar-show sidebar-fixed'
-      oncreate={() => {
-        getAccount();
-        getParticipants();
-        getSessions();
+      oncreate={async () => {
+        await getAccount();
+        await getParticipants();
+        await getSessions();
         
       }}
     >

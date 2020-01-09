@@ -25,7 +25,7 @@ contract Session {
         uint deviation;
         uint price;
     }
-
+    uint public timeOut = 0;
     // List contain all account join pricing session.
     address[] public iParticipants;
     mapping(address => IParticipant) public participant;
@@ -41,6 +41,7 @@ contract Session {
     }
 
     Product public product;
+    event SessionExpiredEvent(bool _expired);
 
     constructor(address _mainContract, string memory _name, string memory _description, string memory _image) public {
         mainContract = _mainContract;
@@ -80,7 +81,10 @@ contract Session {
      * Just only admin can be start pricing session.
      * And current state is started
      */
-    function startSession() public stateStarted() onlyAdmin() {
+    function startSession(uint _time) public stateStarted() onlyAdmin() {
+        if(_time > 0) {
+            timeOut = now + _time;
+        }
         state = StateOfSession.PRICING;
         product.status = StateOfSession.PRICING;
     }
@@ -92,15 +96,23 @@ contract Session {
         address _address = msg.sender;
         // Only member had been register just can pricing
         require(MainContract.isMember(_address));
-        // For participant have the pricing first time;
-        if(participant[_address].account != _address) {
-            uint _deviation = MainContract.getDeviation(_address);
-            participant[_address].account = _address;
-            participant[_address].deviation = _deviation;
-            iParticipants.push(_address);
-            nParticipants ++;
+        // TimeOut < now => session expired
+        if(timeOut != 0 && timeOut <= now) {
+            state = StateOfSession.STOPED;
+            product.status = StateOfSession.STOPED;
+            emit SessionExpiredEvent(true);
+        } else {
+             // For participant have the pricing first time;
+            emit SessionExpiredEvent(false);
+            if(participant[_address].account != _address) {
+                uint _deviation = MainContract.getDeviation(_address);
+                participant[_address].account = _address;
+                participant[_address].deviation = _deviation;
+                iParticipants.push(_address);
+                nParticipants ++;
+            }
+            participant[_address].price = _price;
         }
-        participant[_address].price = _price;
     }
 
     /**

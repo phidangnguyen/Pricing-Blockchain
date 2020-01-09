@@ -13,6 +13,8 @@ contract('MainContract', (accounts) => {
         });
         it('Admin account is the account deployed', async () => {
             admin = await mainContract.getAdmin();
+            console.log(admin);
+            console.log(accounts[0]);
             assert(admin === accounts[0], 'Admin have to set by account deployed.');
         });
     });
@@ -84,7 +86,7 @@ contract('MainContract', (accounts) => {
             const image = '123456789123456789';
             sessionContract = await Session.new(mainContract.address, name, description, image, {from: admin});
             try {
-                await sessionContract.startSession({from: accounts[1]});
+                await sessionContract.startSession(0, {from: accounts[1]});
                 assert(false,'Participant can not start session.');
             } catch (error) {
                 assert(true);
@@ -94,7 +96,7 @@ contract('MainContract', (accounts) => {
         // Admin start session product
         it('Admin start session product', async() => {
             try {
-                await sessionContract.startSession({from: admin});
+                await sessionContract.startSession(0, {from: admin});
                 let product = await sessionContract.product({from: admin});
                 status = product.status.toString();
                 assert(status == '2','Start sesion failed.');
@@ -108,7 +110,7 @@ contract('MainContract', (accounts) => {
         it('Can not start sesion when status not is Created', async () => {
             // Now status is Pricing == 2
             try {
-                await sessionContract.startSession({from: admin});
+                await sessionContract.startSession(0, {from: admin});
                 assert(false,'Can not start sesion when status not is Created');
             } catch (error) {
                 assert(true);

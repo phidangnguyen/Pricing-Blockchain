@@ -17,7 +17,7 @@ const Product = ({ product, newProduct, input, create, isAdmin, fn }) => {
             <img
               class='rounded float-left product-image'
               src={
-                product.image
+                product.image.startsWith('http')
                   ? 'http://127.0.0.1:8080/ipfs/' + product.image
                   : '//robohash.org/' + product.image + '?set=set4&bgset=bg2'
               }
@@ -56,13 +56,13 @@ const Product = ({ product, newProduct, input, create, isAdmin, fn }) => {
                   >
                     Start
                   </button>
-                  {/* <input
+                  <input
                     type='number'
                     styte = 'width: 200px'
                     class='form-control'
                     placeholder='Time for session (munite)'
                     oninput={e => (timeOut = e.target.value)}
-                  /> */}
+                  />
                 </div>
                 <div class='input-group-prepend mr-4'>
                   <button
